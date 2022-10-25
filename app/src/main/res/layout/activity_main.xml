@@ -16,6 +16,30 @@
         android:layout_height="match_parent"
         android:clickable="true" />
 
+    <TextView
+        android:visibility="invisible"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:text="左转"
+        android:textSize="30sp"
+        android:id="@+id/leftFlag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:visibility="invisible"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="10dp"
+        android:textColor="#ffff0000"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:text="右转"
+        android:textSize="30sp"
+        android:id="@+id/rightFlag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
     <androidx.appcompat.widget.LinearLayoutCompat
         app:layout_constraintBottom_toTopOf="@id/startYy"
         app:layout_constraintStart_toStartOf="parent"
@@ -68,7 +92,8 @@
         android:layout_marginBottom="30dp"
         android:layout_marginLeft="10dp"
         android:id="@+id/startYy"
-        android:text="开启鹰眼"
+        android:text="正在启动鹰眼服务"
+        android:clickable="false"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 

@@ -6,6 +6,7 @@ import org.json.JSONStringer
 
 data class UserInfo(val name: String)
 
+
 private const val USER_KEY: String = "user_info_key"
 
 
@@ -22,3 +23,4 @@ fun Context.getUserInfo(): UserInfo? {
     val name = sp.getString("name", null) ?: return null
     return UserInfo(name)
 }
+

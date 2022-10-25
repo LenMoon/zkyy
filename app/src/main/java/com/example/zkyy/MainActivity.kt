@@ -12,9 +12,11 @@ import android.hardware.SensorManager
 import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
+import android.provider.CalendarContract.Colors
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -49,15 +51,18 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
     private lateinit var mBaiduMap:BaiduMap
     private lateinit var mTraceClient:LBSTraceClient
     private val serviceId = 234710
+    private  var flagThreshold = 1
+    private  var flagCount = 20
     var mLocationClient:LocationClient = LocationClient(this);
     val cancelLocationAuto: Subject<Unit> = PublishSubject.create<Unit?>()
     var yyIsStart = false
-    private val gatherInterval = 2
-    private val packInterval = 12
+    private val gatherInterval = 30
+    private val packInterval = 200
     private lateinit var mTrace:Trace
     private lateinit var  sensorManager:SensorManager
     @Volatile
     private var sensorData:SensorData = SensorData(0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f)
+    private var gyroscope:Subject<Float> = PublishSubject.create()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,7 +76,6 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
         setSupportActionBar(null)
         sensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
         lifecycleScope.launchWhenCreated {
-
             initBdMap()
             initUserInfo()
 
@@ -87,15 +91,37 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
                 }
             }
         }
+        binding.startYy.isClickable=false
 
         //注册监听各种传感器数据
         val accSensor = sensorManager.getDefaultSensor(TYPE_ACCELEROMETER)
         val gyroscopeSensor = sensorManager.getDefaultSensor(TYPE_GYROSCOPE)
         val rotationSensor = sensorManager.getDefaultSensor(TYPE_ROTATION_VECTOR)
         Log.d(TAG,"accSensor:$accSensor,gyrSensor:$gyroscopeSensor,rotationSensor:$rotationSensor")
-        sensorManager.registerListener(this,accSensor,SensorManager.SENSOR_DELAY_NORMAL)
-        sensorManager.registerListener(this,gyroscopeSensor,SensorManager.SENSOR_DELAY_NORMAL)
-        sensorManager.registerListener(this,rotationSensor,SensorManager.SENSOR_DELAY_NORMAL)
+        sensorManager.registerListener(this,accSensor,SensorManager.SENSOR_DELAY_FASTEST)
+        sensorManager.registerListener(this,gyroscopeSensor,SensorManager.SENSOR_DELAY_FASTEST)
+        sensorManager.registerListener(this,rotationSensor,SensorManager.SENSOR_DELAY_FASTEST)
+        val leftFlag = binding.leftFlag
+        val rightFlag = binding.rightFlag
+        gyroscope.buffer(30).observeOn(AndroidSchedulers.mainThread())
+            .subscribe {list->
+
+                val isLeft = list.filter { it > flagThreshold }.size > flagCount
+                val isRight = list.filter { it < -flagThreshold }.size > flagCount
+                if (isLeft) {
+                    Log.d(TAG, "左转")
+                    leftFlag.visibility = View.VISIBLE
+                } else {
+                    leftFlag.visibility = View.INVISIBLE
+                }
+                if (isRight) {
+                    Log.d(TAG, "右转")
+                    rightFlag.visibility = View.VISIBLE
+                } else {
+                    rightFlag.visibility=View.INVISIBLE
+                }
+
+            }
 
     }
 
@@ -207,24 +233,30 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
         yyIsStart = isStart
         if (isStart) {
             binding.startYy.text = "关闭鹰眼"
-            Snackbar.make(mMapView,"开启鹰眼成功",Snackbar.LENGTH_SHORT)
-                .show()
+
         } else {
             binding.startYy.text = "开启鹰眼"
-            Snackbar.make(mMapView,"关闭鹰眼成功",Snackbar.LENGTH_SHORT)
-                .show()
+
         }
     }
 
     // 初始化轨迹服务监听器
-    inner class MyTraceListener  : OnTraceListener {
+    open inner class MyTraceListener  : OnTraceListener {
         override fun onBindServiceCallback(p0: Int, p1: String?) {
-            Log.d(TAG,"绑定BOS"+p1)
+            Log.d(TAG,"绑定service成功"+p1)
         }
 
         // 开启服务回调
         override fun onStartTraceCallback(status: Int, message: String) {
             Log.d(TAG,"开启服务回调"+message+status)
+            if (message == "成功") {
+                binding.startYy.isClickable = true
+                updateYyState(false)
+            } else {
+                binding.startYy.isClickable=false
+                binding.startYy.text = "鹰眼今日额度用完"
+                binding.startYy.setBackgroundColor(R.color.gray)
+            }
         }
 
         // 停止服务回调
@@ -252,51 +284,24 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
     }
 
     private suspend fun startYy() {
-        val loading = ProgressDialog(this@MainActivity)
-        try{
-            loading.setTitle("正在开启鹰眼")
-            loading.show()
-            mTraceClient.startGather(MyTraceListener());
-        }finally {
-            loading.dismiss()
-            updateYyState(true)
-
+        loading("正在打开鹰眼"){
+            val (isSuccess,status) =  mTraceClient.startGather()
+            mMapView.snakcBar("打开鹰眼${if(isSuccess) "成功" else "失败,错误码:"+status}")
+            updateYyState(isSuccess)
         }
 
     }
-
     private suspend fun closeYy() {
-        AlertDialog.Builder(this@MainActivity)
-            .setTitle("关闭鹰眼提示")
-            .setMessage("确定要关闭鹰眼吗?")
-            .setPositiveButton("关闭鹰眼") {
-                dialog,pid->
-                lifecycleScope.launch {
-                    realCloseYy(dialog)
-                }
-            }
-            .setNegativeButton("不了!") {
-                dialog,pid ->
-                dialog.dismiss()
-            }
-            .show()
-
-
-    }
-
-    private suspend fun realCloseYy(dialog: DialogInterface) {
-        var loading = ProgressDialog(this@MainActivity)
-        try{
-            loading.setTitle("正在关闭鹰眼")
-            loading.show()
-
-            //关闭鹰眼
-            mTraceClient.stopGather(MyTraceListener());
-            updateYyState(false)
-        }finally {
-            loading.dismiss()
+        loading("正在打开鹰眼"){
+            val (isSuccess,status) = mTraceClient.stopGather()
+            mMapView.snakcBar("关闭鹰眼${if(isSuccess) "成功" else "失败,错误码:"+status}")
+            updateYyState(!isSuccess)
         }
+
     }
+
+
+
 
 
     private suspend fun initUserInfo() {
@@ -329,8 +334,7 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
            }
 
         } else {
-            Snackbar.make(mMapView,"欢迎${userInfo.name}!",Snackbar.LENGTH_SHORT)
-                .show()
+            mMapView.snakcBar("欢迎${userInfo.name}!")
         }
 
     }
@@ -379,6 +383,7 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
             }
             TYPE_GYROSCOPE -> {
                 sensorData = sensorData.copy(gyroscopeZ = values[2])
+                gyroscope.onNext(values[2])
             }
             TYPE_ROTATION_VECTOR -> {
                 sensorData = sensorData.copy(rotationX = values[0], rotationY = values[1], rotationZ = values[2])
