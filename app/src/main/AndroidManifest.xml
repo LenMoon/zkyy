@@ -15,6 +15,32 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- 这个权限用于访问GPS定位 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+
+
+
+
+
+
+    <!-- 用于访问wifi网络信息，wifi信息会用于进行网络定位-->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- 获取运营商信息，用于支持提供运营商信息相关的接口-->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- Android O之后开启前台服务需要申请该权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android Q之后，后台定位需要申请该权限 -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+
+    <!-- 以下不是鹰眼SDK需要的基础权限，可选 -->
+
+    <!-- 用于加快首次卫星定位，可选权限，非必须-->
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+    <!-- 用于Android M及以上系统，申请加入忽略电池优化白名单，可选权限，非必须-->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+
+
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
@@ -47,6 +73,11 @@
         <service android:name="com.baidu.location.f"
             android:enabled="true"
             android:process=":remote"/>
+        <service
+            android:name="com.baidu.trace.LBSTraceService"
+            android:enabled="true"
+            android:process=":remote">
+        </service>
     </application>
 
 </manifest>
