@@ -6,13 +6,13 @@ plugins {
 android {
     signingConfigs {
         debug {
-            storeFile file('C:\\Users\\zhh\\AndroidStudioProjects\\zkyy\\zkyy.jks')
+            storeFile file('D:\\ADAS\\zkyy_app\\zkyy.jks')
             storePassword '123456'
             keyAlias 'zkyy'
             keyPassword '123456'
         }
         release {
-            storeFile file('C:\\Users\\zhh\\AndroidStudioProjects\\zkyy\\zkyy.jks')
+            storeFile file('D:\\ADAS\\zkyy_app\\zkyy.jks')
             storePassword '123456'
             keyAlias 'zkyy'
             keyPassword '123456'
@@ -42,8 +42,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     kotlinOptions {
         jvmTarget = '1.8'
@@ -51,6 +51,8 @@ android {
     buildFeatures {
         viewBinding true
     }
+    buildToolsVersion '32.0.0'
+    ndkVersion '22.1.7171670'
 
 }
 
@@ -66,6 +68,8 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
     implementation 'io.reactivex.rxjava3:rxandroid:3.0.0'
     implementation 'io.reactivex.rxjava3:rxjava:3.0.0'
+    implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation 'androidx.lifecycle:lifecycle-service:2.4.1'
 //    implementation 'com.airbnb.android:lottie:5.2.0'
     testImplementation 'junit:junit:4.13.2'
 

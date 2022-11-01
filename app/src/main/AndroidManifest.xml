@@ -70,6 +70,10 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
+        <service android:name="com.example.zkyy.MyLocationService"
+            android:enabled="true"
+            android:process=":remote"
+            tools:ignore="MissingClass" />
         <service android:name="com.baidu.location.f"
             android:enabled="true"
             android:process=":remote"/>

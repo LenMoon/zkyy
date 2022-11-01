@@ -6,95 +6,13 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.baidu.mapapi.map.MapView
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:id="@+id/bmapView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clickable="true" />
-
-    <TextView
-        android:visibility="invisible"
-        android:layout_marginTop="10dp"
-        android:layout_marginLeft="10dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:text="左转"
-        android:textSize="30sp"
-        android:id="@+id/leftFlag"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <TextView
-        android:visibility="invisible"
-        android:layout_marginTop="10dp"
-        android:layout_marginRight="10dp"
-        android:textColor="#ffff0000"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:text="右转"
-        android:textSize="30sp"
-        android:id="@+id/rightFlag"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
     <androidx.appcompat.widget.LinearLayoutCompat
-        app:layout_constraintBottom_toTopOf="@id/startYy"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
         android:background="#00000000"
-        android:layout_marginLeft="10dp"
         android:orientation="vertical"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <TextView
-            android:id="@+id/accX"
-            android:text="accX"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <TextView
-            android:id="@+id/accY"
-            android:text="accY"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <TextView
-            android:id="@+id/accZ"
-            android:text="accZ"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-        <TextView
-            android:id="@+id/gyroscopeZ"
-            android:text="gyroscopeZ"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-        <TextView
-            android:text="rotationX"
-            android:id="@+id/rotationX"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-        <TextView
-            android:text="rotationY"
-            android:id="@+id/rotationY"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-        <TextView
-            android:text="rotationZ"
-            android:id="@+id/rotationZ"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-    </androidx.appcompat.widget.LinearLayoutCompat>
-
-    <Button
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="30dp"
-        android:layout_marginLeft="10dp"
-        android:id="@+id/startYy"
-        android:text="正在启动鹰眼服务"
-        android:clickable="false"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        tools:layout_editor_absoluteY="517dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

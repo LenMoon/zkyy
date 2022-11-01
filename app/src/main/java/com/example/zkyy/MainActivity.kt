@@ -1,14 +1,16 @@
 package com.example.zkyy
 
 import android.Manifest
-import android.app.ProgressDialog
 import android.content.Context
-import android.content.DialogInterface
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.Sensor.*
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
@@ -41,12 +43,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.TimeUnit
 
+import com.example.zkyy.databinding.FragmentCustomBinding
 
-class MainActivity : AppCompatActivity(),SensorEventListener {
+class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
     companion object {
         const val TAG = "鹰眼"
     }
-    private lateinit var binding: ActivityMainBinding
+    private lateinit var binding: FragmentCustomBinding
     private lateinit var mMapView:MapView
     private lateinit var mBaiduMap:BaiduMap
     private lateinit var mTraceClient:LBSTraceClient
@@ -60,8 +63,11 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
     private val packInterval = 200
     private lateinit var mTrace:Trace
     private lateinit var  sensorManager:SensorManager
+
+    var GPS_enabled = false
+
     @Volatile
-    private var sensorData:SensorData = SensorData(0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f)
+    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f, 0.0f)
     private var gyroscope:Subject<Float> = PublishSubject.create()
 
 
@@ -69,17 +75,23 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
         super.onCreate(savedInstanceState)
         mTraceClient = LBSTraceClient(applicationContext)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+//        binding = ActivityMainBinding.inflate(layoutInflater)
+        binding = FragmentCustomBinding.inflate(layoutInflater)
+
         setContentView(binding.root)
         mMapView = binding.bmapView
         mBaiduMap = mMapView.map
         setSupportActionBar(null)
+
         sensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
         lifecycleScope.launchWhenCreated {
             initBdMap()
             initUserInfo()
 
             initTrace()
+
+            startGPS()
         }
 
         binding.startYy.setOnClickListener {
@@ -97,10 +109,13 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
         val accSensor = sensorManager.getDefaultSensor(TYPE_ACCELEROMETER)
         val gyroscopeSensor = sensorManager.getDefaultSensor(TYPE_GYROSCOPE)
         val rotationSensor = sensorManager.getDefaultSensor(TYPE_ROTATION_VECTOR)
+
         Log.d(TAG,"accSensor:$accSensor,gyrSensor:$gyroscopeSensor,rotationSensor:$rotationSensor")
-        sensorManager.registerListener(this,accSensor,SensorManager.SENSOR_DELAY_FASTEST)
-        sensorManager.registerListener(this,gyroscopeSensor,SensorManager.SENSOR_DELAY_FASTEST)
-        sensorManager.registerListener(this,rotationSensor,SensorManager.SENSOR_DELAY_FASTEST)
+
+        sensorManager.registerListener(this,accSensor,SensorManager.SENSOR_DELAY_GAME)
+        sensorManager.registerListener(this,gyroscopeSensor,SensorManager.SENSOR_DELAY_GAME)
+        sensorManager.registerListener(this,rotationSensor,SensorManager.SENSOR_DELAY_GAME)
+
         val leftFlag = binding.leftFlag
         val rightFlag = binding.rightFlag
         gyroscope.buffer(30).observeOn(AndroidSchedulers.mainThread())
@@ -155,9 +170,14 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
 
     fun formatSensorData(sd: SensorData): Map<String, String> {
         return mapOf(
+            "long_gps" to "${sd.longGPS}",
+            "lat_gps" to "${sd.latGPS}",
+            "speed_gps" to "${sd.speedGPS}",
             "acc_x" to "${sd.accX}",
             "acc_y" to "${sd.accY}",
             "acc_z" to "${sd.accZ}",
+            "gyroscope_x" to "${sd.gyroscopeX}",
+            "gyroscope_y" to "${sd.gyroscopeY}",
             "gyroscope_z" to "${sd.gyroscopeZ}",
             "rotation_x" to "${sd.rotationX}",
             "rotation_y" to "${sd.rotationY}",
@@ -380,7 +400,7 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
                 sensorData = sensorData.copy(accX = values[0], accY = values[1], accZ = values[2])
             }
             TYPE_GYROSCOPE -> {
-                sensorData = sensorData.copy(gyroscopeZ = values[2])
+                sensorData = sensorData.copy(gyroscopeX = values[0], gyroscopeY = values[1], gyroscopeZ = values[2])
                 gyroscope.onNext(values[2])
             }
             TYPE_ROTATION_VECTOR -> {
@@ -392,18 +412,46 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
     }
 
     private fun notifySensorDataUpdate() {
-        binding.accX.text = "accX:${sensorData.accX}m/s²"
-        binding.accY.text = "accY:${sensorData.accY}m/s²"
-        binding.accZ.text = "accZ:${sensorData.accZ}m/s²"
-        binding.gyroscopeZ.text = "gyroscopeZ:${sensorData.gyroscopeZ}rnd/s"
-        binding.rotationX.text = "rotationX:${sensorData.rotationX}"
-        binding.rotationY.text = "rotationY:${sensorData.rotationY}"
-        binding.rotationZ.text = "rotationZ:${sensorData.rotationZ}"
-    }
+        binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
+        binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
+        binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
+
+        binding.accX.text = String.format("%6.3f", sensorData.accX)
+        binding.accY.text = String.format("%6.3f", sensorData.accY)
+        binding.accZ.text = String.format("%6.3f", sensorData.accZ)
+
+        binding.gyroscopeX.text = String.format("%6.3f", sensorData.gyroscopeX)
+        binding.gyroscopeY.text = String.format("%6.3f", sensorData.gyroscopeY)
+        binding.gyroscopeZ.text = String.format("%6.3f", sensorData.gyroscopeZ)
+
+        binding.rotationX.text = String.format("%6.3f", sensorData.rotationX)
+        binding.rotationY.text = String.format("%6.3f", sensorData.rotationY)
+        binding.rotationZ.text = String.format("%6.3f", sensorData.rotationZ)
+
+     }
 
 
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
 
     }
 
+    fun startGPS() {
+        MyLocationObserver.MyLocationListener.locationChangeListener = this
+        startService(Intent(this,MyLocationService::class.java))
+    }
+
+    fun stopGPS() {
+        MyLocationObserver.MyLocationListener.locationChangeListener = null
+        stopService(Intent(this,MyLocationService::class.java))
+    }
+
+    override fun locationChange(longitude:Float,latitude:Float, speed:Float) {
+        sensorData = sensorData.copy(longGPS = longitude, latGPS = latitude, speedGPS = speed)
+    }
+
 }
+
+interface OnLocationChange {
+    fun locationChange(longitude:Float,latitude:Float, speed:Float)
+}
+
