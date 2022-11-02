@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit
 
 import com.example.zkyy.databinding.FragmentCustomBinding
 
-class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
+class MainActivity : AppCompatActivity(),OnLocationChange  {
     companion object {
         const val TAG = "鹰眼"
     }
@@ -62,7 +62,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
     private val gatherInterval = 30
     private val packInterval = 200
     private lateinit var mTrace:Trace
-    private lateinit var  sensorManager:SensorManager
 
     var GPS_enabled = false
 
@@ -83,7 +82,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
         mBaiduMap = mMapView.map
         setSupportActionBar(null)
 
-        sensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         lifecycleScope.launchWhenCreated {
             initBdMap()
@@ -92,6 +90,9 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
             initTrace()
 
             startGPS()
+
+            initDataCollectService()
+
         }
 
         binding.startYy.setOnClickListener {
@@ -104,17 +105,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
             }
         }
         binding.startYy.isClickable=false
-
-        //注册监听各种传感器数据
-        val accSensor = sensorManager.getDefaultSensor(TYPE_ACCELEROMETER)
-        val gyroscopeSensor = sensorManager.getDefaultSensor(TYPE_GYROSCOPE)
-        val rotationSensor = sensorManager.getDefaultSensor(TYPE_ROTATION_VECTOR)
-
-        Log.d(TAG,"accSensor:$accSensor,gyrSensor:$gyroscopeSensor,rotationSensor:$rotationSensor")
-
-        sensorManager.registerListener(this,accSensor,SensorManager.SENSOR_DELAY_GAME)
-        sensorManager.registerListener(this,gyroscopeSensor,SensorManager.SENSOR_DELAY_GAME)
-        sensorManager.registerListener(this,rotationSensor,SensorManager.SENSOR_DELAY_GAME)
 
         val leftFlag = binding.leftFlag
         val rightFlag = binding.rightFlag
@@ -138,6 +128,18 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
 
             }
 
+    }
+
+    private suspend fun initDataCollectService() {
+        val dataCollectBinder = DataCollectService.bindService(this@MainActivity)
+        // 启动采集传感器数据
+        dataCollectBinder.startCollectSensor()
+        dataCollectBinder.sensorDataObservable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                sensorData = it
+                notifySensorDataUpdate()
+            }
     }
 
 
@@ -244,9 +246,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
 
 
     }
-
-
-
 
 
     private  fun updateYyState(isStart: Boolean) {
@@ -386,30 +385,8 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
     override fun onDestroy() {
         super.onDestroy()
         mMapView.onDestroy()
-        sensorManager.unregisterListener(this)
     }
 
-    override fun onSensorChanged(se: SensorEvent?) {
-        if (se == null) {
-            return
-        }
-        val sensorType = se.sensor.type
-        val values = se.values
-        when (sensorType) {
-            TYPE_ACCELEROMETER -> {
-                sensorData = sensorData.copy(accX = values[0], accY = values[1], accZ = values[2])
-            }
-            TYPE_GYROSCOPE -> {
-                sensorData = sensorData.copy(gyroscopeX = values[0], gyroscopeY = values[1], gyroscopeZ = values[2])
-                gyroscope.onNext(values[2])
-            }
-            TYPE_ROTATION_VECTOR -> {
-                sensorData = sensorData.copy(rotationX = values[0], rotationY = values[1], rotationZ = values[2])
-            }
-            else -> {}
-        }
-        notifySensorDataUpdate()
-    }
 
     private fun notifySensorDataUpdate() {
         binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
@@ -431,9 +408,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange,SensorEventListener  {
      }
 
 
-    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
-
-    }
 
     fun startGPS() {
         MyLocationObserver.MyLocationListener.locationChangeListener = this

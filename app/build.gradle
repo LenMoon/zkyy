@@ -6,13 +6,13 @@ plugins {
 android {
     signingConfigs {
         debug {
-            storeFile file('D:\\ADAS\\zkyy_app\\zkyy.jks')
+            storeFile file('..\\zkyy.jks')
             storePassword '123456'
             keyAlias 'zkyy'
             keyPassword '123456'
         }
         release {
-            storeFile file('D:\\ADAS\\zkyy_app\\zkyy.jks')
+            storeFile file('..\\zkyy.jks')
             storePassword '123456'
             keyAlias 'zkyy'
             keyPassword '123456'
