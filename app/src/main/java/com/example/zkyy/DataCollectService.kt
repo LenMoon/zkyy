@@ -1,5 +1,6 @@
 package com.example.zkyy
 
+import android.app.Notification.BigTextStyle
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -20,8 +21,15 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.baidu.location.BDAbstractLocationListener
+import com.baidu.location.BDLocation
+import com.baidu.location.LocationClient
+import com.baidu.location.LocationClientOption
+import com.baidu.mapapi.map.MyLocationData
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.subjects.PublishSubject
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.suspendCoroutine
 
@@ -36,8 +44,10 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
     private var mRotationSensor:Sensor? = null
     private lateinit var mSensorManager:SensorManager
     private val mSensorDataSubject = PublishSubject.create<SensorData>()
-
+    private lateinit var mLocationClient: LocationClient
+    private val mLocationListener = MyLocationListener()
     private lateinit var mLocationManager:LocationManager
+    private val mLocalDataSubject = PublishSubject.create<BDLocation>()
 
     inner class DataCollectBinder : Binder() {
         fun startCollectSensor() {
@@ -50,22 +60,48 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
             mSensorManager.unregisterListener(this@DataCollectService)
         }
         fun startCollectGps() {
+            val option = LocationClientOption()
+            option.setOpenGps(true) // 打开gps
+            option.setCoorType("bd09ll") // 设置坐标类型
+            option.setScanSpan(1000)
+            mLocationClient.setLocOption(option)
+            mLocationClient.registerLocationListener(mLocationListener)
+            mLocationClient.start()
         }
         fun stopCollectGps() {
+            mLocationClient.stop()
         }
         fun sensorDataObservable(): Observable<SensorData> {
             return mSensorDataSubject
+        }
+
+        fun locationDataObservable(): Observable<BDLocation> {
+            return mLocalDataSubject
+        }
+    }
+
+    inner class MyLocationListener : BDAbstractLocationListener() {
+        override fun onReceiveLocation(location: BDLocation) {
+
+            val lon = location.longitude.toFloat()
+            val lat = location.latitude.toFloat()
+            val speed  = location.speed
+            Log.d(MainActivity.TAG,"经度:$lon 维度:$lat 速度:$speed")
+            sensorData = sensorData.copy(longGPS = location.latitude.toFloat(), latGPS = location.latitude.toFloat(), speedGPS = location.speed)
+            mSensorDataSubject.onNext(sensorData)
+            mLocalDataSubject.onNext(location)
         }
     }
 
 
     override fun onCreate() {
         super.onCreate()
+
         mSensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
         mAccSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         mGyroscopeSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-
+        mLocationClient = LocationClient(this)
         mLocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
             100,//每0.1秒获取一次
@@ -107,9 +143,12 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
             val builder = NotificationCompat.Builder(this, channelID)
                 .setSmallIcon(com.google.android.material.R.drawable.ic_clock_black_24dp)
                 .setContentTitle("中科鹰眼数据采集${i++}")
-                .setContentText("""
+                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText("""
                 gps状态:--    网络状态:-- 传感器状态:--
-            """.trimIndent())
+                accX:${it.accX} gyroX:${it.gyroscopeX} rotaX:${it.rotationX}
+                lat:${it.latGPS} lon:${it.longGPS} speed:${it.speedGPS}
+                time:${LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME)}
+            """.trimIndent()))
                 .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             startForeground(1,builder.build())

@@ -56,7 +56,6 @@ class MainActivity : AppCompatActivity()  {
     private val serviceId = 234710
     private  var flagThreshold = 1
     private  var flagCount = 20
-    var mLocationClient:LocationClient = LocationClient(this);
     val cancelLocationAuto: Subject<Unit> = PublishSubject.create<Unit?>()
     var yyIsStart = false
     private val gatherInterval = 30
@@ -136,12 +135,35 @@ class MainActivity : AppCompatActivity()  {
         dataCollectBinder.startCollectGps()
         // 启动采集传感器数据
         dataCollectBinder.startCollectSensor()
+        dataCollectBinder.startCollectGps()
         dataCollectBinder.sensorDataObservable()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 sensorData = it
                 notifySensorDataUpdate()
             }
+
+
+        dataCollectBinder.locationDataObservable()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {location->
+                //mapView 销毁后不在处理新接收的位置
+                if (mMapView == null) {
+                    return@subscribe
+                }
+                val locData = MyLocationData.Builder()
+                    .accuracy(location.radius) // 此处设置开发者获取到的方向信息，顺时针0-360
+                    .direction(location.direction).latitude(location.latitude)
+                    .longitude(location.longitude).speed(location.speed).build()
+
+//            sensorData = sensorData.copy(longGPS = location.latitude.toFloat(), latGPS = location.latitude.toFloat(), speedGPS = location.speed)
+                GPS_Long = location.longitude.toFloat()
+                GPS_Lat = location.latitude.toFloat()
+                GPS_Speed = location.speed
+                Log.d(TAG,"经度:$GPS_Long 维度:$GPS_Lat 速度:$GPS_Speed")
+                mBaiduMap.setMyLocationData(locData)
+            }
+
     }
 
 
@@ -190,26 +212,6 @@ class MainActivity : AppCompatActivity()  {
     }
 
 
-    inner class MyLocationListener : BDAbstractLocationListener() {
-        override fun onReceiveLocation(location: BDLocation) {
-            //mapView 销毁后不在处理新接收的位置
-            if (mMapView == null) {
-                return
-            }
-            val locData = MyLocationData.Builder()
-                .accuracy(location.radius) // 此处设置开发者获取到的方向信息，顺时针0-360
-                .direction(location.direction).latitude(location.latitude)
-                .longitude(location.longitude).speed(location.speed).build()
-
-//            sensorData = sensorData.copy(longGPS = location.latitude.toFloat(), latGPS = location.latitude.toFloat(), speedGPS = location.speed)
-            GPS_Long = location.longitude.toFloat()
-            GPS_Lat = location.latitude.toFloat()
-            GPS_Speed = location.speed
-            Log.d(TAG,"经度:$GPS_Long 维度:$GPS_Lat 速度:$GPS_Speed")
-            mBaiduMap.setMyLocationData(locData)
-        }
-    }
-
     suspend fun initBdMap() {
 
         val result = requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -222,15 +224,8 @@ class MainActivity : AppCompatActivity()  {
             return
         }
 
-        //申请权限
         mMapView.map.isMyLocationEnabled = true
-        val option = LocationClientOption()
-        option.setOpenGps(true) // 打开gps
-        option.setCoorType("bd09ll") // 设置坐标类型
-        option.setScanSpan(1000)
-        mLocationClient.setLocOption(option)
-        mLocationClient.registerLocationListener(MyLocationListener())
-        mLocationClient.start()
+
 
         mBaiduMap.setMyLocationConfiguration(MyLocationConfiguration(MyLocationConfiguration.LocationMode.COMPASS,
             true,null))
