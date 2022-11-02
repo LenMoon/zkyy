@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit
 
 import com.example.zkyy.databinding.FragmentCustomBinding
 
-class MainActivity : AppCompatActivity(),OnLocationChange  {
+class MainActivity : AppCompatActivity()  {
     companion object {
         const val TAG = "鹰眼"
     }
@@ -64,6 +64,9 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
     private lateinit var mTrace:Trace
 
     var GPS_enabled = false
+    var GPS_Long = 0.0f
+    var GPS_Lat = 0.0f
+    var GPS_Speed = 0.0f
 
     @Volatile
     private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f, 0.0f)
@@ -88,8 +91,6 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
             initUserInfo()
 
             initTrace()
-
-            startGPS()
 
             initDataCollectService()
 
@@ -132,6 +133,7 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
 
     private suspend fun initDataCollectService() {
         val dataCollectBinder = DataCollectService.bindService(this@MainActivity)
+        dataCollectBinder.startCollectGps()
         // 启动采集传感器数据
         dataCollectBinder.startCollectSensor()
         dataCollectBinder.sensorDataObservable()
@@ -197,7 +199,13 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
             val locData = MyLocationData.Builder()
                 .accuracy(location.radius) // 此处设置开发者获取到的方向信息，顺时针0-360
                 .direction(location.direction).latitude(location.latitude)
-                .longitude(location.longitude).build()
+                .longitude(location.longitude).speed(location.speed).build()
+
+//            sensorData = sensorData.copy(longGPS = location.latitude.toFloat(), latGPS = location.latitude.toFloat(), speedGPS = location.speed)
+            GPS_Long = location.longitude.toFloat()
+            GPS_Lat = location.latitude.toFloat()
+            GPS_Speed = location.speed
+            Log.d(TAG,"经度:$GPS_Long 维度:$GPS_Lat 速度:$GPS_Speed")
             mBaiduMap.setMyLocationData(locData)
         }
     }
@@ -389,9 +397,13 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
 
 
     private fun notifySensorDataUpdate() {
-        binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
-        binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
-        binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
+//        binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
+//        binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
+//        binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
+
+        binding.gpsLong.text = String.format("%6.3f", GPS_Long)
+        binding.gpsLat.text = String.format("%6.3f", GPS_Lat)
+        binding.gpsSpeed.text = String.format("%6.3f", GPS_Speed)
 
         binding.accX.text = String.format("%6.3f", sensorData.accX)
         binding.accY.text = String.format("%6.3f", sensorData.accY)
@@ -407,25 +419,5 @@ class MainActivity : AppCompatActivity(),OnLocationChange  {
 
      }
 
-
-
-    fun startGPS() {
-        MyLocationObserver.MyLocationListener.locationChangeListener = this
-        startService(Intent(this,MyLocationService::class.java))
-    }
-
-    fun stopGPS() {
-        MyLocationObserver.MyLocationListener.locationChangeListener = null
-        stopService(Intent(this,MyLocationService::class.java))
-    }
-
-    override fun locationChange(longitude:Float,latitude:Float, speed:Float) {
-        sensorData = sensorData.copy(longGPS = longitude, latGPS = latitude, speedGPS = speed)
-    }
-
-}
-
-interface OnLocationChange {
-    fun locationChange(longitude:Float,latitude:Float, speed:Float)
 }
 

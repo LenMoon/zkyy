@@ -12,16 +12,20 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.subjects.PublishSubject
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.suspendCoroutine
 
-class DataCollectService : Service(), SensorEventListener {
+class DataCollectService : Service(), SensorEventListener,LocationListener {
     @Volatile
     private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f, 0.0f)
     private val dataCollectBinder = DataCollectBinder()
@@ -33,7 +37,7 @@ class DataCollectService : Service(), SensorEventListener {
     private lateinit var mSensorManager:SensorManager
     private val mSensorDataSubject = PublishSubject.create<SensorData>()
 
-
+    private lateinit var mLocationManager:LocationManager
 
     inner class DataCollectBinder : Binder() {
         fun startCollectSensor() {
@@ -46,10 +50,8 @@ class DataCollectService : Service(), SensorEventListener {
             mSensorManager.unregisterListener(this@DataCollectService)
         }
         fun startCollectGps() {
-
         }
         fun stopCollectGps() {
-
         }
         fun sensorDataObservable(): Observable<SensorData> {
             return mSensorDataSubject
@@ -64,12 +66,17 @@ class DataCollectService : Service(), SensorEventListener {
         mGyroscopeSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-
+        mLocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+            100,//每0.1秒获取一次
+            0.1f,//每移动1米获取一次
+            this
+        )
 
         val intent = Intent(this,MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         val channelID = "zkhy_noti"
         // 创建通道
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -126,12 +133,21 @@ class DataCollectService : Service(), SensorEventListener {
         when (sensorType) {
             Sensor.TYPE_ACCELEROMETER -> {
                 sensorData = sensorData.copy(accX = values[0], accY = values[1], accZ = values[2])
+
+                var testAccX = sensorData.accX
+                Log.d(MainActivity.TAG,"My accX：$testAccX")
             }
             Sensor.TYPE_GYROSCOPE -> {
                 sensorData = sensorData.copy(gyroscopeX = values[0], gyroscopeY = values[1], gyroscopeZ = values[2])
+
+                var testGyroscopeX = sensorData.gyroscopeX
+                Log.d(MainActivity.TAG,"My gyroscopeX：$testGyroscopeX")
             }
             Sensor.TYPE_ROTATION_VECTOR -> {
                 sensorData = sensorData.copy(rotationX = values[0], rotationY = values[1], rotationZ = values[2])
+
+                var testRotationX = sensorData.rotationX
+                Log.d(MainActivity.TAG,"My rotationX：$testRotationX")
             }
             else -> {}
         }
@@ -160,4 +176,8 @@ class DataCollectService : Service(), SensorEventListener {
         }
     }
 
+    override fun onLocationChanged(location: Location) {
+        var longi = location.longitude.toFloat()
+        Log.d(MainActivity.TAG,"My经度：$longi")
+    }
 }

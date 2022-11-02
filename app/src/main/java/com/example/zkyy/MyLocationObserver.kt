@@ -10,6 +10,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 
+interface OnLocationChange {
+    fun locationChange(longitude:Float,latitude:Float,speed:Float)
+}
+
 class MyLocationObserver(
     private val _service: Context
 ) : LifecycleObserver {
