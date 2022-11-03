@@ -1,7 +1,6 @@
 package com.example.zkyy
 
 import android.Manifest
-import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
@@ -17,7 +16,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.CalendarContract.Colors
-import android.provider.Settings.*
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -56,7 +54,6 @@ class MainActivity : AppCompatActivity()  {
     private lateinit var mMapView:MapView
     private lateinit var mBaiduMap:BaiduMap
     private lateinit var mTraceClient:LBSTraceClient
-    private lateinit var mPowerManager: PowerManager
     private val serviceId = 234710
     private  var flagThreshold = 1
     private  var flagCount = 20
@@ -72,7 +69,11 @@ class MainActivity : AppCompatActivity()  {
     var GPS_Speed = 0.0f
 
     @Volatile
-    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f, 0.0f)
+    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f, false,
+        0.0f,0.0f,0.0f, false,
+        0.0f,0.0f,0.0f, false,
+        0.0f, 0.0f, 0.0f, false,
+        0.0f, 0.0f, 0.0f, false)
     private var gyroscope:Subject<Float> = PublishSubject.create()
 
 
@@ -82,7 +83,7 @@ class MainActivity : AppCompatActivity()  {
 
 //        binding = ActivityMainBinding.inflate(layoutInflater)
         binding = FragmentCustomBinding.inflate(layoutInflater)
-        mPowerManager = getSystemService(PowerManager::class.java)
+
         setContentView(binding.root)
         mMapView = binding.bmapView
         mBaiduMap = mMapView.map
@@ -92,7 +93,7 @@ class MainActivity : AppCompatActivity()  {
         lifecycleScope.launchWhenCreated {
             initBdMap()
             initUserInfo()
-            requestBatteryWhite()
+
             initTrace()
 
             initDataCollectService()
@@ -132,26 +133,6 @@ class MainActivity : AppCompatActivity()  {
 
             }
 
-    }
-
-    private suspend fun requestBatteryWhite() {
-        val isInWhite = mPowerManager.isIgnoringBatteryOptimizations(packageName)
-        Log.d(TAG,"应用时否在电池优化白名单中:$isInWhite-$packageName")
-
-        if (!isInWhite) {
-            val r = confirm("采集设备体验优化", "为了更好的采集数据，将设备加入电池优化白名单吧", "好的", "不好")
-            if (r) {
-                Log.d(TAG,"开始诱导用户加入电池优化白名单")
-                val intent = Intent(ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                val optActivity = intent.resolveActivity(packageManager)
-                if (optActivity != null) {
-                    startActivity(intent)
-                } else {
-                    val intent = Intent(ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    startActivity(intent)
-                }
-            }
-        }
     }
 
     private suspend fun initDataCollectService() {
@@ -231,7 +212,10 @@ class MainActivity : AppCompatActivity()  {
             "gyroscope_z" to "${sd.gyroscopeZ}",
             "rotation_x" to "${sd.rotationX}",
             "rotation_y" to "${sd.rotationY}",
-            "rotation_z" to "${sd.rotationZ}"
+            "rotation_z" to "${sd.rotationZ}",
+            "magnetic_x" to "${sd.magneticX}",
+            "magnetic_y" to "${sd.magneticY}",
+            "magnetic_z" to "${sd.magneticZ}"
         )
     }
 
@@ -241,8 +225,7 @@ class MainActivity : AppCompatActivity()  {
         val result = requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS,
-            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS
         )
         Log.d(TAG,"权限结果:$result")
         if (result.isEmpty()) {
@@ -417,13 +400,19 @@ class MainActivity : AppCompatActivity()  {
 
 
     private fun notifySensorDataUpdate() {
-//        binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
-//        binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
-//        binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
+        binding.gpsLong.text = String.format("%6.3f", sensorData.longGPS)
+        binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
+        binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
 
-        binding.gpsLong.text = String.format("%6.3f", GPS_Long)
-        binding.gpsLat.text = String.format("%6.3f", GPS_Lat)
-        binding.gpsSpeed.text = String.format("%6.3f", GPS_Speed)
+//        val wakeLock: PowerManager.WakeLock =
+//            (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+//                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag").apply {
+//                    acquire()
+//                }
+//            }
+//        binding.gpsLong.text = String.format("%6.3f", GPS_Long)
+//        binding.gpsLat.text = String.format("%6.3f", GPS_Lat)
+//        binding.gpsSpeed.text = String.format("%6.3f", GPS_Speed)
 
         binding.accX.text = String.format("%6.3f", sensorData.accX)
         binding.accY.text = String.format("%6.3f", sensorData.accY)
@@ -436,6 +425,36 @@ class MainActivity : AppCompatActivity()  {
         binding.rotationX.text = String.format("%6.3f", sensorData.rotationX)
         binding.rotationY.text = String.format("%6.3f", sensorData.rotationY)
         binding.rotationZ.text = String.format("%6.3f", sensorData.rotationZ)
+
+        binding.magneticX.text = String.format("%6.3f", sensorData.magneticX)
+        binding.magneticY.text = String.format("%6.3f", sensorData.magneticY)
+        binding.magneticZ.text = String.format("%6.3f", sensorData.magneticZ)
+
+        if (sensorData.gpsState) {
+            binding.stateTextGPS.text = "正常"
+            if (binding.stateTextGPS.background != getDrawable(R.color.green)) {
+                binding.stateTextGPS.background = getDrawable(R.color.green)
+            }
+        } else {
+            binding.stateTextGPS.text = "异常"
+            if (binding.stateTextGPS.background != getDrawable(R.color.red)) {
+                binding.stateTextGPS.background = getDrawable(R.color.red)
+            }
+        }
+
+        if (sensorData.accState && sensorData.gyroscopeState && sensorData.rotationState && sensorData.magneticState) {
+            binding.stateTextIMU.text = "正常"
+            if (binding.stateTextIMU.background != getDrawable(R.color.green))
+            {
+                binding.stateTextIMU.background = getDrawable(R.color.green)
+            }
+        } else {
+            binding.stateTextIMU.text = "异常"
+            if (binding.stateTextIMU.background != getDrawable(R.color.red))
+            {
+                binding.stateTextIMU.background = getDrawable(R.color.red)
+            }
+        }
 
      }
 

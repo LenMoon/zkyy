@@ -21,7 +21,6 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.os.PowerManager.WakeLock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.baidu.location.BDAbstractLocationListener
@@ -41,13 +40,18 @@ import kotlin.coroutines.suspendCoroutine
 
 class DataCollectService : Service(), SensorEventListener,LocationListener {
     @Volatile
-    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f, 0.0f, 0.0f)
+    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f, false,
+        0.0f,0.0f,0.0f, false,
+        0.0f,0.0f,0.0f, false,
+        0.0f, 0.0f, 0.0f, false,
+        0.0f, 0.0f, 0.0f, false)
     private val dataCollectBinder = DataCollectBinder()
 
 
-    private var mAccSensor: Sensor?=null
-    private var mGyroscopeSensor:Sensor? =null
+    private var mAccSensor: Sensor? = null
+    private var mGyroscopeSensor:Sensor? = null
     private var mRotationSensor:Sensor? = null
+    private var mMagneticSensor:Sensor? = null
     private lateinit var mSensorManager:SensorManager
     private val mSensorDataSubject = PublishSubject.create<SensorData>()
     private lateinit var mLocationClient: LocationClient
@@ -56,14 +60,14 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
     private val mLocalDataSubject = PublishSubject.create<BDLocation>()
     private lateinit var dataReport: DataReport
     private lateinit var mPowerManager: PowerManager
-    private var mWakeLock:WakeLock?=null
+    private var mWakeLock: PowerManager.WakeLock?=null
 
     inner class DataCollectBinder : Binder() {
         fun startCollectSensor() {
             mSensorManager.registerListener(this@DataCollectService,mAccSensor,SensorManager.SENSOR_DELAY_GAME)
             mSensorManager.registerListener(this@DataCollectService,mGyroscopeSensor,SensorManager.SENSOR_DELAY_GAME)
             mSensorManager.registerListener(this@DataCollectService,mRotationSensor,SensorManager.SENSOR_DELAY_GAME)
-
+            mSensorManager.registerListener(this@DataCollectService,mMagneticSensor,SensorManager.SENSOR_DELAY_GAME)
         }
         fun stopCollectSensor() {
             mSensorManager.unregisterListener(this@DataCollectService)
@@ -96,11 +100,14 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
             val lat = location.latitude.toFloat()
             val speed  = location.speed
             Log.d(MainActivity.TAG,"经度:$lon 维度:$lat 速度:$speed")
+
             sensorData = sensorData.apply {
                 longGPS = location.latitude.toFloat()
                 latGPS = location.latitude.toFloat()
                 speedGPS = location.speed
+                gpsState = true
             }
+
             mSensorDataSubject.onNext(sensorData)
             mLocalDataSubject.onNext(location)
         }
@@ -111,9 +118,12 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
         super.onCreate()
 
         mSensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
         mAccSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         mGyroscopeSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        mMagneticSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+
         mLocationClient = LocationClient(this)
         mLocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
@@ -169,7 +179,7 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
                 .setSmallIcon(com.google.android.material.R.drawable.ic_clock_black_24dp)
                 .setContentTitle("中科鹰眼数据采集${i++}")
                 .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText("""
-                gps状态:--    网络状态:-- 传感器状态:--
+                gps状态:${it.gpsState}    网络状态:-- 传感器状态:${it.accState && it.gyroscopeState && it.rotationState && it.magneticState}
                 accX:${it.accX} gyroX:${it.gyroscopeX} rotaX:${it.rotationX}
                 lat:${it.latGPS} lon:${it.longGPS} speed:${it.speedGPS}
                 time:${LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME)}
@@ -197,24 +207,36 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
         when (sensorType) {
             Sensor.TYPE_ACCELEROMETER -> {
                 sensorData = sensorData.apply {
-                    accX = values[0]; accY = values[1]; accZ = values[2]
+                    accX = values[0]; accY = values[1]; accZ = values[2]; accState = true;
                 }
                 var testAccX = sensorData.accX
                 Log.d(MainActivity.TAG,"My accX：$testAccX")
             }
             Sensor.TYPE_GYROSCOPE -> {
                 sensorData = sensorData.apply {
-                    gyroscopeX = values[0]; gyroscopeY = values[1]; gyroscopeZ = values[2]
+                    gyroscopeX = values[0]; gyroscopeY = values[1]; gyroscopeZ = values[2]; gyroscopeState = true;
                 }
+
                 var testGyroscopeX = sensorData.gyroscopeX
                 Log.d(MainActivity.TAG,"My gyroscopeX：$testGyroscopeX")
             }
             Sensor.TYPE_ROTATION_VECTOR -> {
-                sensorData = sensorData.copy(rotationX = values[0], rotationY = values[1], rotationZ = values[2])
+                sensorData = sensorData.apply {
+                    rotationX = values[0]; rotationY = values[1]; rotationZ = values[2]; rotationState = true;
+                }
 
                 var testRotationX = sensorData.rotationX
                 Log.d(MainActivity.TAG,"My rotationX：$testRotationX")
             }
+            Sensor.TYPE_MAGNETIC_FIELD -> {
+                sensorData = sensorData.apply {
+                    magneticX = values[0]; magneticY = values[1]; magneticZ = values[2]; magneticState = true;
+                }
+
+                var testMagneticX = sensorData.magneticX
+                Log.d(MainActivity.TAG,"My magneticX：$testMagneticX")
+            }
+
             else -> {}
         }
         mSensorDataSubject.onNext(sensorData)
@@ -249,6 +271,6 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
 
     override fun onLocationChanged(location: Location) {
         var longi = location.longitude.toFloat()
-        Log.d(MainActivity.TAG,"My经度：$longi")
+//        Log.d(MainActivity.TAG,"My经度：$longi")
     }
 }

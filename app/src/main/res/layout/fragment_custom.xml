@@ -22,31 +22,73 @@
             android:orientation="horizontal"
             android:padding="1dp">
 
-            <TextView
-                android:id="@+id/stateTextOne"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="#64B5F6"
-                android:text="连接状态" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/stateTextTwo"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginLeft="2dp"
-                android:layout_marginRight="2dp"
-                android:layout_weight="1"
-                android:background="#64B5F6"
-                android:text="GPS状态" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#64B5F6"
+                    android:text="连接状态" />
 
-            <TextView
-                android:id="@+id/stateTextThree"
-                android:layout_width="wrap_content"
+                <TextView
+                    android:id="@+id/stateTextConnect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#FFFF0000" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="#64B5F6"
-                android:text="IMU状态" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="2dp"
+                    android:layout_marginRight="2dp"
+                    android:layout_weight="1"
+                    android:background="#64B5F6"
+                    android:text="GPS状态" />
+
+                <TextView
+                    android:id="@+id/stateTextGPS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="2dp"
+                    android:layout_marginRight="2dp"
+                    android:layout_weight="1"
+                    android:background="#FFFF0000" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#64B5F6"
+                    android:text="IMU状态" />
+
+                <TextView
+                    android:id="@+id/stateTextIMU"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#FFFF0000" />
+            </LinearLayout>
+
         </LinearLayout>
 
         <FrameLayout
@@ -369,6 +411,48 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="磁力计"
+                            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+                        <TextView
+                            android:id="@+id/magneticX"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:textAppearance="?android:attr/textAppearanceSmall"
+                            android:textColor="@color/green" />
+
+                        <TextView
+                            android:id="@+id/magneticY"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:textAppearance="?android:attr/textAppearanceSmall"
+                            android:textColor="@color/red" />
+
+                        <TextView
+                            android:id="@+id/magneticZ"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:textAppearance="?android:attr/textAppearanceSmall"
+                            android:textColor="@color/blue" />
+
+
+                    </TableRow>
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1">
+
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="旋转矢量"
                             android:textAppearance="?android:attr/textAppearanceSmall" />
 
 
