@@ -1,6 +1,7 @@
 package com.example.zkyy
 
 import android.Manifest
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
@@ -14,7 +15,9 @@ import android.location.LocationManager
 import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.CalendarContract.Colors
+import android.provider.Settings.*
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -53,6 +56,7 @@ class MainActivity : AppCompatActivity()  {
     private lateinit var mMapView:MapView
     private lateinit var mBaiduMap:BaiduMap
     private lateinit var mTraceClient:LBSTraceClient
+    private lateinit var mPowerManager: PowerManager
     private val serviceId = 234710
     private  var flagThreshold = 1
     private  var flagCount = 20
@@ -78,7 +82,7 @@ class MainActivity : AppCompatActivity()  {
 
 //        binding = ActivityMainBinding.inflate(layoutInflater)
         binding = FragmentCustomBinding.inflate(layoutInflater)
-
+        mPowerManager = getSystemService(PowerManager::class.java)
         setContentView(binding.root)
         mMapView = binding.bmapView
         mBaiduMap = mMapView.map
@@ -88,7 +92,7 @@ class MainActivity : AppCompatActivity()  {
         lifecycleScope.launchWhenCreated {
             initBdMap()
             initUserInfo()
-
+            requestBatteryWhite()
             initTrace()
 
             initDataCollectService()
@@ -128,6 +132,26 @@ class MainActivity : AppCompatActivity()  {
 
             }
 
+    }
+
+    private suspend fun requestBatteryWhite() {
+        val isInWhite = mPowerManager.isIgnoringBatteryOptimizations(packageName)
+        Log.d(TAG,"应用时否在电池优化白名单中:$isInWhite-$packageName")
+
+        if (!isInWhite) {
+            val r = confirm("采集设备体验优化", "为了更好的采集数据，将设备加入电池优化白名单吧", "好的", "不好")
+            if (r) {
+                Log.d(TAG,"开始诱导用户加入电池优化白名单")
+                val intent = Intent(ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                val optActivity = intent.resolveActivity(packageManager)
+                if (optActivity != null) {
+                    startActivity(intent)
+                } else {
+                    val intent = Intent(ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                    startActivity(intent)
+                }
+            }
+        }
     }
 
     private suspend fun initDataCollectService() {
@@ -217,7 +241,8 @@ class MainActivity : AppCompatActivity()  {
         val result = requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS
+            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS,
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
         )
         Log.d(TAG,"权限结果:$result")
         if (result.isEmpty()) {

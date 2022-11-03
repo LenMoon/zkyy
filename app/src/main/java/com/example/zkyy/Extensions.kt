@@ -2,10 +2,12 @@ package com.example.zkyy
 
 import android.app.ProgressDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.baidu.trace.LBSTraceClient
@@ -13,6 +15,8 @@ import com.baidu.trace.model.OnTraceListener
 import com.baidu.trace.model.PushMessage
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 const val TAG = "鹰眼扩展"
 suspend fun AppCompatActivity.requestPermission(vararg permissions: String): Map<String, Boolean> {
@@ -29,6 +33,27 @@ suspend fun AppCompatActivity.requestPermission(vararg permissions: String): Map
             }
         }
         lancher.launch(permissions)
+    }
+}
+
+
+suspend fun Context.confirm(title: String, content: String,okText:String,cancelText:String):Boolean {
+    return suspendCoroutine {r->
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(content)
+            .setPositiveButton(okText
+            ) { dialog, p1 ->
+                dialog.dismiss()
+                r.resume(true)
+            }
+            .setNegativeButton(cancelText){
+                    dialog,p1 ->
+                dialog.dismiss()
+                r.resume(false)
+            }
+            .setCancelable(false)
+            .show()
     }
 }
 
