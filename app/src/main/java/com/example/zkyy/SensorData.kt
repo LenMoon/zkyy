@@ -8,7 +8,7 @@ data class SensorData(
     @Volatile
     var speedGPS:Float,
     @Volatile
-    var gpsState:Boolean,
+    var gpsState:Int,
 
     @Volatile
     var accX:Float,
@@ -17,7 +17,7 @@ data class SensorData(
     @Volatile
     var accZ:Float,
     @Volatile
-    var accState:Boolean,
+    var accState:Int,
 
     @Volatile
     var gyroscopeX:Float,
@@ -26,7 +26,7 @@ data class SensorData(
     @Volatile
     var gyroscopeZ:Float,
     @Volatile
-    var gyroscopeState:Boolean,
+    var gyroscopeState:Int,
 
     @Volatile
     var rotationX:Float,
@@ -35,7 +35,7 @@ data class SensorData(
     @Volatile
     var rotationZ:Float,
     @Volatile
-    var rotationState:Boolean,
+    var rotationState:Int,
 
     @Volatile
     var magneticX:Float,
@@ -44,5 +44,5 @@ data class SensorData(
     @Volatile
     var magneticZ:Float,
     @Volatile
-    var magneticState:Boolean,
+    var magneticState:Int,
     )

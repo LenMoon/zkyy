@@ -63,17 +63,16 @@ class MainActivity : AppCompatActivity()  {
     private val packInterval = 200
     private lateinit var mTrace:Trace
 
-    var GPS_enabled = false
-    var GPS_Long = 0.0f
-    var GPS_Lat = 0.0f
-    var GPS_Speed = 0.0f
+    var mStateLableGPS = R.color.red
+    var mStateLableIMU = R.color.red
+    var mStateLableConnect = R.color.red
 
     @Volatile
-    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f, false,
-        0.0f,0.0f,0.0f, false,
-        0.0f,0.0f,0.0f, false,
-        0.0f, 0.0f, 0.0f, false,
-        0.0f, 0.0f, 0.0f, false)
+    private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f, 0,
+        0.0f,0.0f,0.0f, 0,
+        0.0f,0.0f,0.0f, 0,
+        0.0f, 0.0f, 0.0f, 0,
+        0.0f, 0.0f, 0.0f, 0)
     private var gyroscope:Subject<Float> = PublishSubject.create()
 
 
@@ -161,11 +160,6 @@ class MainActivity : AppCompatActivity()  {
                     .direction(location.direction).latitude(location.latitude)
                     .longitude(location.longitude).speed(location.speed).build()
 
-//            sensorData = sensorData.copy(longGPS = location.latitude.toFloat(), latGPS = location.latitude.toFloat(), speedGPS = location.speed)
-                GPS_Long = location.longitude.toFloat()
-                GPS_Lat = location.latitude.toFloat()
-                GPS_Speed = location.speed
-                Log.d(TAG,"经度:$GPS_Long 维度:$GPS_Lat 速度:$GPS_Speed")
                 mBaiduMap.setMyLocationData(locData)
             }
 
@@ -404,16 +398,6 @@ class MainActivity : AppCompatActivity()  {
         binding.gpsLat.text = String.format("%6.3f", sensorData.latGPS)
         binding.gpsSpeed.text = String.format("%6.3f", sensorData.speedGPS)
 
-//        val wakeLock: PowerManager.WakeLock =
-//            (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
-//                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag").apply {
-//                    acquire()
-//                }
-//            }
-//        binding.gpsLong.text = String.format("%6.3f", GPS_Long)
-//        binding.gpsLat.text = String.format("%6.3f", GPS_Lat)
-//        binding.gpsSpeed.text = String.format("%6.3f", GPS_Speed)
-
         binding.accX.text = String.format("%6.3f", sensorData.accX)
         binding.accY.text = String.format("%6.3f", sensorData.accY)
         binding.accZ.text = String.format("%6.3f", sensorData.accZ)
@@ -430,32 +414,39 @@ class MainActivity : AppCompatActivity()  {
         binding.magneticY.text = String.format("%6.3f", sensorData.magneticY)
         binding.magneticZ.text = String.format("%6.3f", sensorData.magneticZ)
 
-        if (sensorData.gpsState) {
-            binding.stateTextGPS.text = "正常"
-            if (binding.stateTextGPS.background != getDrawable(R.color.green)) {
+        if (sensorData.gpsState > 0) {
+
+            if (mStateLableGPS == R.color.red) {
+                binding.stateTextGPS.text = "正常:${sensorData.gpsState}"
                 binding.stateTextGPS.background = getDrawable(R.color.green)
+                mStateLableGPS = R.color.green
             }
         } else {
-            binding.stateTextGPS.text = "异常"
-            if (binding.stateTextGPS.background != getDrawable(R.color.red)) {
+            if (mStateLableGPS == R.color.green) {
+                binding.stateTextGPS.text = "异常:${sensorData.gpsState}"
                 binding.stateTextGPS.background = getDrawable(R.color.red)
+                mStateLableGPS = R.color.red
             }
         }
 
-        if (sensorData.accState && sensorData.gyroscopeState && sensorData.rotationState && sensorData.magneticState) {
-            binding.stateTextIMU.text = "正常"
-            if (binding.stateTextIMU.background != getDrawable(R.color.green))
-            {
+        if (sensorData.accState > 0 &&
+            sensorData.gyroscopeState > 0 &&
+            sensorData.rotationState > 0 &&
+            sensorData.magneticState > 0) {
+            if (mStateLableIMU == R.color.red) {
+                binding.stateTextIMU.text = "正常${sensorData.accState}${sensorData.gyroscopeState}${sensorData.rotationState}${sensorData.magneticState}"
                 binding.stateTextIMU.background = getDrawable(R.color.green)
+                mStateLableIMU = R.color.green
             }
         } else {
-            binding.stateTextIMU.text = "异常"
-            if (binding.stateTextIMU.background != getDrawable(R.color.red))
-            {
+            if (mStateLableIMU == R.color.green) {
+                binding.stateTextIMU.text = "异常${sensorData.accState}${sensorData.gyroscopeState}${sensorData.rotationState}${sensorData.magneticState}"
                 binding.stateTextIMU.background = getDrawable(R.color.red)
+                mStateLableIMU = R.color.red
             }
         }
 
+        Log.d(TAG,"心跳测试:${sensorData.gpsState}${sensorData.accState}${sensorData.gyroscopeState}${sensorData.rotationState}${sensorData.magneticState} *********")
      }
 
 }
