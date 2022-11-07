@@ -45,6 +45,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.TimeUnit
 
 import com.example.zkyy.databinding.FragmentCustomBinding
+import java.time.LocalDateTime
 
 class MainActivity : AppCompatActivity()  {
     companion object {
@@ -72,14 +73,13 @@ class MainActivity : AppCompatActivity()  {
         0.0f,0.0f,0.0f, 0,
         0.0f,0.0f,0.0f, 0,
         0.0f, 0.0f, 0.0f, 0,
-        0.0f, 0.0f, 0.0f, 0)
+        0.0f, 0.0f, 0.0f, 0,null)
     private var gyroscope:Subject<Float> = PublishSubject.create()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mTraceClient = LBSTraceClient(applicationContext)
-
 //        binding = ActivityMainBinding.inflate(layoutInflater)
         binding = FragmentCustomBinding.inflate(layoutInflater)
 
@@ -219,7 +219,8 @@ class MainActivity : AppCompatActivity()  {
         val result = requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS
+            Manifest.permission.ACCESS_LOCATION_EXTRA_COMMANDS,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION
         )
         Log.d(TAG,"权限结果:$result")
         if (result.isEmpty()) {

@@ -1,5 +1,7 @@
 package com.example.zkyy
 
+import java.time.LocalDateTime
+
 data class SensorData(
     @Volatile
     var longGPS:Float,
@@ -45,4 +47,6 @@ data class SensorData(
     var magneticZ:Float,
     @Volatile
     var magneticState:Int,
+    @Volatile
+    var reportTime:String?
     )

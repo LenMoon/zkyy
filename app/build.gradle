@@ -72,6 +72,8 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-service:2.4.1'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.2.1'
+    implementation 'com.trello:rxlifecycle-components:0.6.1'
 //    implementation 'com.airbnb.android:lottie:5.2.0'
     testImplementation 'junit:junit:4.13.2'
 

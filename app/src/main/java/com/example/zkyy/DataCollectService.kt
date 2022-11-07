@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-import android.graphics.drawable.Drawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -18,21 +17,25 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Binder
-import android.os.Build
-import android.os.IBinder
-import android.os.PowerManager
+import android.os.*
+import android.provider.Settings
 import android.util.Log
-import android.view.View
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import com.baidu.location.BDAbstractLocationListener
 import com.baidu.location.BDLocation
 import com.baidu.location.LocationClient
 import com.baidu.location.LocationClientOption
+import com.baidu.mapapi.CoordType
 import com.example.zkyy.http.DataReport
+import com.trello.rxlifecycle.RxLifecycle
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.time.LocalDateTime
@@ -42,13 +45,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.suspendCoroutine
 
 
-class DataCollectService : Service(), SensorEventListener,LocationListener {
+class DataCollectService : LifecycleService(), SensorEventListener {
     @Volatile
     private var sensorData:SensorData = SensorData(0.0f, 0.0f, 0.0f, 0,
         0.0f,0.0f,0.0f, 0,
         0.0f,0.0f,0.0f, 0,
         0.0f, 0.0f, 0.0f, 0,
-        0.0f, 0.0f, 0.0f, 0)
+        0.0f, 0.0f, 0.0f, 0, null)
     private val dataCollectBinder = DataCollectBinder()
 
 
@@ -60,13 +63,18 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
     private val mSensorDataSubject = PublishSubject.create<SensorData>()
     private lateinit var mLocationClient: LocationClient
     private val mLocationListener = MyLocationListener()
-    private lateinit var mLocationManager:LocationManager
     private val mLocalDataSubject = PublishSubject.create<BDLocation>()
     private lateinit var dataReport: DataReport
     private lateinit var mPowerManager: PowerManager
     private var mWakeLock: PowerManager.WakeLock?=null
 
     private val mLifeTime = 5
+
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mWakeLock?.release()
+    }
 
     inner class DataCollectBinder : Binder() {
         fun startCollectSensor() {
@@ -81,7 +89,7 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
         fun startCollectGps() {
             val option = LocationClientOption()
             option.setOpenGps(true) // 打开gps
-            option.setCoorType("bd09ll") // 设置坐标类型
+            option.setCoorType(CoordType.BD09LL.name) // 设置坐标类型
             option.setScanSpan(1000)
             mLocationClient.setLocOption(option)
             mLocationClient.registerLocationListener(mLocationListener)
@@ -108,7 +116,7 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
             Log.d(MainActivity.TAG,"经度:$lon 维度:$lat 速度:$speed")
 
             sensorData = sensorData.apply {
-                longGPS = location.latitude.toFloat()
+                longGPS = location.longitude.toFloat()
                 latGPS = location.latitude.toFloat()
                 speedGPS = location.speed
                 gpsState = mLifeTime
@@ -122,31 +130,33 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
 
     override fun onCreate() {
         super.onCreate()
-
         mSensorManager= getSystemService(Context.SENSOR_SERVICE) as SensorManager
-
         mAccSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         mGyroscopeSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         mMagneticSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
         mLocationClient = LocationClient(this)
-        mLocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-            100,//每0.1秒获取一次
-            0.1f,//每移动1米获取一次
-            this
-        )
+
         mPowerManager = getSystemService(PowerManager::class.java)
 
         mWakeLock= mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zkhy::zkyy").apply {
             acquire()
         }
+        val interceptor = HttpLoggingInterceptor()
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
+
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.github.com/")
+            .baseUrl("http://10.22.2.76:8082/")
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+
+
+
+
         dataReport = retrofit.create(DataReport::class.java)
 
         val intent = Intent(this,MainActivity::class.java).apply {
@@ -183,7 +193,7 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
 
         var i = 0;
         // 更新前台服务显示状态示例
-        mSensorDataSubject
+        val disposable = mSensorDataSubject
             .throttleLast(3,TimeUnit.SECONDS)
             .subscribe {
             val builder = NotificationCompat.Builder(this, channelID)
@@ -199,6 +209,27 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             startForeground(1,builder.build(),FOREGROUND_SERVICE_TYPE_DATA_SYNC or FOREGROUND_SERVICE_TYPE_LOCATION)
         }
+
+
+        val userName = getUserInfo()?.name ?: "未知"
+
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+        mSensorDataSubject.observeOn(Schedulers.io())
+            .buffer(100)
+            .subscribe{
+                try {
+                    val response = dataReport.reportData(userName, it).execute()
+                    Log.d(TAG, "上报数据返回结果:" + response.body()+":"+ response.message()+":"+response.code())
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Log.e(TAG,"上传数据报错了",e)
+                }
+            }
+
+
+
+
 
 
         Timer().schedule(object : TimerTask() {
@@ -279,10 +310,7 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        mWakeLock?.release()
-    }
+
 
     companion object {
         suspend fun bindService(context: Context):DataCollectBinder {
@@ -300,11 +328,6 @@ class DataCollectService : Service(), SensorEventListener,LocationListener {
                 },1)
             }
         }
-    }
-
-    override fun onLocationChanged(location: Location) {
-        var longi = location.longitude.toFloat()
-//        Log.d(MainActivity.TAG,"My经度：$longi")
     }
 
 }
